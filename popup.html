@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>GazeGuard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #080812;
+      --surf:    #0f0f1e;
+      --surf2:   #141428;
+      --border:  rgba(255,255,255,0.07);
+      --accent:  #8b5cf6;
+      --accent2: #a78bfa;
+      --accent3: #c4b5fd;
+      --text:    #f0f0f8;
+      --muted:   rgba(240,240,248,0.45);
+      --green:   #34d399;
+      --red:     #f87171;
+      --yellow:  #fbbf24;
+      --r:       14px;
+    }
+    body {
+      width: 340px; background: var(--bg);
+      color: var(--text); font-family: 'DM Sans', sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    .hdr {
+      padding: 18px 18px 14px;
+      background: linear-gradient(160deg, #120828 0%, #0d0d1c 100%);
+      border-bottom: 1px solid var(--border);
+      position: relative; overflow: hidden;
+    }
+    .hdr::after {
+      content: ''; position: absolute;
+      top: -40px; right: -40px; width: 140px; height: 140px;
+      background: radial-gradient(circle, rgba(139,92,246,0.22), transparent 65%);
+      pointer-events: none;
+    }
+    .hdr-row { display: flex; align-items: center; justify-content: space-between; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, #6d28d9, #a855f7);
+      border-radius: 11px; display: flex; align-items: center; justify-content: center;
+      font-size: 20px; box-shadow: 0 4px 16px rgba(139,92,246,0.45);
+    }
+    .brand-name {
+      font-size: 19px; font-weight: 700; letter-spacing: -0.3px;
+      background: linear-gradient(135deg, #fff 40%, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .brand-tag { font-size: 10.5px; color: var(--muted); margin-left: 48px; margin-top: 2px; }
+
+    /* master toggle */
+    .toggle-wrap { display: flex; align-items: center; gap: 8px; }
+    .toggle-label { font-size: 11.5px; color: var(--muted); }
+    .sw { position: relative; width: 44px; height: 24px; cursor: pointer; }
+    .sw input { opacity: 0; width: 0; height: 0; }
+    .sw-track {
+      position: absolute; inset: 0; border-radius: 999px;
+      background: rgba(255,255,255,0.1); transition: background .3s;
+    }
+    .sw-track::after {
+      content: ''; position: absolute; left: 3px; top: 3px;
+      width: 18px; height: 18px; border-radius: 50%; background: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+      transition: transform .3s cubic-bezier(.22,1,.36,1);
+    }
+    .sw input:checked ~ .sw-track { background: linear-gradient(135deg, #7c3aed, #a855f7); }
+    .sw input:checked ~ .sw-track::after { transform: translateX(20px); }
+
+    /* ── STATUS BAR ── */
+    .status-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 18px; background: var(--surf2);
+      border-bottom: 1px solid var(--border); font-size: 11.5px;
+    }
+    .s-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .s-dot.active  { background: var(--green); animation: pulse 2s infinite; }
+    .s-dot.away    { background: var(--yellow); animation: pulse 1s infinite; }
+    .s-dot.paused  { background: var(--red); }
+    .s-dot.off     { background: rgba(255,255,255,0.2); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .s-text { color: var(--muted); flex: 1; }
+    .s-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 7px;
+      border-radius: 999px; letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .s-badge.ml  { background: rgba(139,92,246,0.15); color: var(--accent3); border: 1px solid rgba(139,92,246,0.25); }
+    .s-badge.fb  { background: rgba(251,191,36,0.12);  color: var(--yellow);  border: 1px solid rgba(251,191,36,0.25); }
+
+    /* ── CAMERA PREVIEW ── */
+    .cam-section {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    #cam-preview {
+      width: 72px; height: 54px; border-radius: 10px; object-fit: cover;
+      border: 2px solid var(--border); background: #000; flex-shrink: 0;
+    }
+    .cam-info { flex: 1; }
+    .cam-info strong { display: block; font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+    .face-indicator {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11.5px; color: var(--muted);
+    }
+    #face-dot { font-size: 14px; }
+    #face-label { transition: color .3s; }
+
+    /* ── BODY ── */
+    .body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+    .card {
+      background: var(--surf); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 13px 15px;
+    }
+    .card-header {
+      font-size: 10.5px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.9px; margin-bottom: 11px;
+    }
+
+    /* slider */
+    .range-row { display: flex; align-items: center; gap: 10px; }
+    input[type=range] {
+      flex: 1; -webkit-appearance: none; height: 4px;
+      border-radius: 999px; background: rgba(255,255,255,0.1); outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+      background: linear-gradient(135deg, #7c3aed, #a855f7); cursor: pointer;
+      box-shadow: 0 0 0 3px rgba(139,92,246,0.22);
+    }
+    .range-val { font-size: 13px; font-weight: 700; color: var(--accent2); min-width: 34px; text-align: right; }
+    .range-hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+    /* option rows */
+    .opt-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 0; border-bottom: 1px solid var(--border);
+    }
+    .opt-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .opt-label strong { display: block; font-size: 12.5px; font-weight: 600; }
+    .opt-label span { font-size: 11px; color: var(--muted); }
+
+    /* platforms */
+    .platforms { display: flex; flex-wrap: wrap; gap: 6px; }
+    .plat {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      border-radius: 8px; padding: 5px 9px; font-size: 11.5px; color: rgba(255,255,255,0.65);
+    }
+    .plat .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+    /* stats */
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat-box {
+      background: var(--surf2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 10px 12px; text-align: center;
+    }
+    .stat-val { font-size: 20px; font-weight: 800; color: var(--accent2); line-height: 1; }
+    .stat-lbl { font-size: 10px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .reset-btn {
+      width: 100%; margin-top: 8px; padding: 7px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--muted); font-size: 11.5px; cursor: pointer;
+      font-family: inherit; transition: background .15s;
+    }
+    .reset-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+    /* footer */
+    .footer {
+      padding: 9px 16px 14px; font-size: 10.5px;
+      color: var(--muted); text-align: center; line-height: 1.6;
+      border-top: 1px solid var(--border);
+    }
+    .footer strong { color: var(--accent2); }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-row">
+    <div class="brand">
+      <div class="brand-icon">👁️</div>
+      <div class="brand-name">GazeGuard</div>
+    </div>
+    <div class="toggle-wrap">
+      <span class="toggle-label" id="toggle-lbl">ON</span>
+      <label class="sw">
+        <input type="checkbox" id="masterToggle" checked/>
+        <span class="sw-track"></span>
+      </label>
+    </div>
+  </div>
+  <div class="brand-tag">Auto-pauses videos when you look away</div>
+</div>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <div class="s-dot active" id="s-dot"></div>
+  <div class="s-text" id="s-text">Watching for your face…</div>
+  <div class="s-badge ml" id="s-badge">BlazeFace</div>
+</div>
+
+<!-- CAMERA PREVIEW -->
+<div class="cam-section">
+  <video id="cam-preview" autoplay muted playsinline></video>
+  <div class="cam-info">
+    <strong>Live Camera</strong>
+    <div class="face-indicator">
+      <span id="face-dot">⚪</span>
+      <span id="face-label">Waiting for detection…</span>
+    </div>
+    <div style="font-size:10.5px;color:var(--muted);margin-top:6px;">
+      Preview is local only — not recorded
+    </div>
+  </div>
+</div>
+
+<!-- MAIN BODY -->
+<div class="body">
+
+  <!-- PAUSE DELAY -->
+  <div class="card">
+    <div class="card-header">Pause Delay</div>
+    <div class="range-row">
+      <input type="range" id="threshSlider" min="1" max="10" step="0.5" value="3"/>
+      <div class="range-val" id="threshVal">3s</div>
+    </div>
+    <div class="range-hint">Pause after face is absent for this duration</div>
+  </div>
+
+  <!-- OPTIONS -->
+  <div class="card">
+    <div class="card-header">Options</div>
+    <div class="opt-row">
+      <div class="opt-label">
+        <strong>Countdown overlay</strong>
+        <span>Show a timer before pausing</span>
+      </div>
+      <label class="sw"><input type="checkbox" id="opt-countdown" checked/><span class="sw-track"></span></label>
+    </div>
+    <div class="opt-row">
+      <div class="opt-label">
+        <strong>Auto-resume</strong>
+        <span>Resume when face is detected</span>
+      </div>
+      <label class="sw"><input type="checkbox" id="opt-autoResume" checked/><span class="sw-track"></span></label>
+    </div>
+    <div class="opt-row">
+      <div class="opt-label">
+        <strong>Only while playing</strong>
+        <span>Ignore if video is already paused</span>
+      </div>
+      <label class="sw"><input type="checkbox" id="opt-playingOnly" checked/><span class="sw-track"></span></label>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="card">
+    <div class="card-header">Session Stats</div>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-val" id="stat-pauses">0</div>
+        <div class="stat-lbl">Times Paused</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stat-saved">0m</div>
+        <div class="stat-lbl">Time Saved</div>
+      </div>
+    </div>
+    <button class="reset-btn" id="resetStatsBtn">↺ Reset Stats</button>
+  </div>
+
+  <!-- PLATFORMS -->
+  <div class="card">
+    <div class="card-header">Active Platforms</div>
+    <div class="platforms">
+      <div class="plat"><span class="dot"></span>YouTube</div>
+      <div class="plat"><span class="dot"></span>Netflix</div>
+      <div class="plat"><span class="dot"></span>Hotstar</div>
+      <div class="plat"><span class="dot"></span>Prime Video</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  Camera processed <strong>100% locally</strong> — no data leaves your device
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
